@@ -1,3 +1,25 @@
+// #  -------------------------------------------------------------------------
+// #  This file contains C++ code to fit Gaussian or Lorentzian peaks to
+// #  spectroscopic data. For more detail, see:
+// #  Moores; Gracie; Carson; Faulds; Graham & Girolami (2016; v2 2018)
+// #  "Bayesian modelling and quantification of Raman spectroscopy"
+// #  https://arxiv.org/abs/1604.07299
+// #
+// #  Copyright (C) 2017,2018  University of Warwick
+// # 
+// #  This source code is free software: you can redistribute it and/or modify
+// #  it under the terms of the GNU General Public License as published by
+// #  the Free Software Foundation, either version 2 of the License, or
+// #  (at your option) any later version.
+// # 
+// #  This software is distributed in the hope that it will be useful,
+// #  but WITHOUT ANY WARRANTY; without even the implied warranty of
+// #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// #  GNU General Public License for more details.
+// # 
+// #  You should have received a copy of the GNU General Public License
+// #  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// #  -------------------------------------------------------------------------
 // [[Rcpp::depends(RcppEigen)]]
 #include <RcppEigen.h>
 using namespace Rcpp;
@@ -15,6 +37,12 @@ using namespace Eigen;
 //' @param amplitude Vector of amplitudes of the peaks.
 //' @param wavelengths Vector of wavenumbers at which to compute the function.
 //' @return The value of the Lorentian function at the given wavelengths.
+//' @examples
+//'   Cal_V <- seq(300,400,by=5)
+//'   loc <- c(320,350,375)
+//'   sca <- c(10,5,18)
+//'   amp <- c(1000,5000,2000)
+//'   weightedLorentzian(loc,sca,amp,Cal_V)
 // [[Rcpp::export]]
 Eigen::VectorXd weightedLorentzian(Eigen::VectorXd location, Eigen::VectorXd scale, Eigen::VectorXd amplitude, Eigen::VectorXd wavelengths)
 {
@@ -52,6 +80,9 @@ double sum_logs(NumericVector log_prob)
 //' 
 //' @param log_weights logarithms of the importance weights of each particle.
 //' @return the effective sample size, a scalar between 0 and Q
+//' @examples
+//' x <- runif(100)
+//' effectiveSampleSize(log(x))
 //' @references
 //' Liu, JS (2001) "Monte Carlo Strategies in Scientific Computing." Springer, NY, pp. 34--36.
 // [[Rcpp::export]]
@@ -166,17 +197,17 @@ Eigen::ArrayXi residualResampling(NumericVector log_wt)
   {
     if (std::isfinite(log_wt(i)))
     {
-      int tW = (int)trunc(exp(log_wt(i) + log(n)));
+      int tW = (int)trunc(exp(log_wt(i) + log((double)n)));
       for (int j=0; j < tW; j++)
       {
         idx[r+j] = i;
       }
       r += tW;
-      log_wt(i) = log(exp(log_wt(i) + log(n)) - tW);
+      log_wt(i) = log(exp(log_wt(i) + log((double)n)) - (double)tW);
     }
   }
   // renormalize the weights
-  log_wt = log_wt - log(n-r);
+  log_wt = log_wt - log(((double)n-r));
 
   // second loop uses multinomial resampling for the remaining n-r particles
   const NumericVector randU = runif(n-r);
@@ -320,6 +351,12 @@ NumericVector weightedVariance(NumericMatrix particles, NumericVector log_weight
 //' @param amplitude Vector of amplitudes of the peaks.
 //' @param wavelengths Vector of wavenumbers at which to compute the function.
 //' @return The value of the Gaussian function at the given wavelengths.
+//' @examples
+//'   Cal_V <- seq(300,400,by=5)
+//'   loc <- c(320,350,375)
+//'   sca <- c(10,5,18)
+//'   amp <- c(1000,5000,2000)
+//'   weightedGaussian(loc,sca,amp,Cal_V)
 // [[Rcpp::export]]
 Eigen::VectorXd weightedGaussian(Eigen::VectorXd location, Eigen::VectorXd scale, Eigen::VectorXd amplitude, Eigen::VectorXd wavelengths)
 {
