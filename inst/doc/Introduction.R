@@ -43,7 +43,7 @@ print(paste(result$time["elapsed"]/3600,"hours for",length(result$ess),"SMC iter
 ## ----ess, fig.show='hold'------------------------------------------------
 plot.ts(result$ess, ylab="ESS", main="Effective Sample Size",
         xlab="SMC iteration", ylim=c(0,max(result$ess)))
-abline(h=length(result$sigma)/2, col=4, lty=2)
+abline(h=max(result$ess)/2, col=4, lty=2)
 abline(h=0,lty=2)
 plot.ts(result$accept, ylab="accept", main="M-H Acceptance Rate",
         xlab="SMC iteration", ylim=c(0,max(result$accept)))
@@ -104,10 +104,22 @@ for (k in 1:nrow(result$beta)) {
   f_L <- result$scale_L[k,]
   result$FWHM[k,] <- 0.5346*f_L + sqrt(0.2166*f_L^2 + f_G^2)
 }
-library(coda)
+
+voigtCI <- apply(result$voigt, 2, function(x) quantile(x,probs=c(0.025,0.975)))
+fmtVoigtCI <- format(voigtCI,dig=2)
+fwhmCI <- apply(result$FWHM, 2, function(x) quantile(x,probs=c(0.025,0.975)))
+fmtFWHMci <- format(fwhmCI,dig=2)
+ampCI <- apply(result$beta, 2, function(x) quantile(x,probs=c(0.025,0.975)))
+fmtAmpCI <- format(ampCI,digits=0,scientific=FALSE)
+locCI <- apply(result$location, 2, function(x) quantile(x,probs=c(0.025,0.975)))
+fmtLocCI <- format(locCI,dig=3)
+
 library(knitr)
-lFitVoigt.coda <- mcmc(cbind(result$location, result$beta, result$FWHM, result$voigt))
-varnames(lFitVoigt.coda) <- c(paste0("loc[",1:nPK,"]"), paste0("amp[",1:nPK,"]"), 
-                              paste0("FWHM[",1:nPK,"]"), paste0("voigt[",1:nPK,"]"))
-kable(HPDinterval(lFitVoigt.coda), digits=2, caption="95% highest posterior density intervals for pseudo-Voigt peaks")
+tabCI <- cbind(paste0("[", fmtLocCI[1,], "; ", fmtLocCI[2,], "]"),
+  paste0("[", fmtAmpCI[1,], "; ", fmtAmpCI[2,], "]"),
+  paste0("[", fmtFWHMci[1,], "; ", fmtFWHMci[2,], "]"),
+  paste0("[", fmtVoigtCI[1,], "; ", fmtVoigtCI[2,], "]"))
+colnames(tabCI) <- c("Location (cm-1)", "Amplitude", "FWHM (cm-1)", "Voigt")
+kable(tabCI, caption="95% highest posterior density intervals for pseudo-Voigt peaks",
+      align = 'rrrr')
 
