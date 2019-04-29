@@ -3,6 +3,11 @@
 #' @inheritParams fitSpectraSMC
 #' @param mcAR target acceptance rate for the MCMC kernel
 #' @param mcSteps number of iterations of the MCMC kernel
+#' @importFrom methods as
+#' @importFrom stats rlnorm rnorm rgamma runif cov.wt cov2cor median
+#' @importFrom truncnorm rtruncnorm
+#' @importFrom splines bs
+#' @importFrom Matrix Matrix crossprod determinant
 #' @examples 
 #' wavenumbers <- seq(200,600,by=10)
 #' spectra <- matrix(nrow=1, ncol=length(wavenumbers))
@@ -109,6 +114,7 @@ fitVoigtPeaksSMC <- function(wl, spc, lPriors, conc=rep(1.0,nrow(spc)), npart=10
   Kappa_Hist[1]<-0
   Time_Hist[1]<-iTime[3]
   print(paste("Step 1: initialization for",N_Peaks,"Voigt peaks took",iTime[3],"sec."))
+  print(colMeans(Sample[,(3*N_Peaks+1):(4*N_Peaks)]))
 
   i<-1
   Cal_I <- 1
@@ -120,7 +126,7 @@ fitVoigtPeaksSMC <- function(wl, spc, lPriors, conc=rep(1.0,nrow(spc)), npart=10
     i<-i+1
     
     iTime<-system.time({
-      
+
       ptm <- proc.time()
       Min_Kappa<-Kappa_Hist[i-1]
       Max_Kappa<-1
@@ -209,67 +215,27 @@ fitVoigtPeaksSMC <- function(wl, spc, lPriors, conc=rep(1.0,nrow(spc)), npart=10
       if(!is.na(MC_AR[i-1])){
         MCMC_MP<-2^(-5*(0.23-MC_AR[i-1]))*MCMC_MP
       }
-      mhCov <- MCMC_MP*(2.38^2/(4*N_Peaks))*Prop_Cov + diag(1e-3,N_Peaks*4)
+      mhCov <- MCMC_MP*(2.38^2/(4*N_Peaks))*Prop_Cov
+      mhChol <- t(chol(mhCov, pivot = FALSE)) # error if not non-negative definite
 
       for(mcr in 1:mcSteps){
         MC_Steps[i]<-MC_Steps[i]+1
-        
-        T_Prop_Theta<-T_Sample[,1:(4*N_Peaks)]+mvrnorm(npart,mu=rep(0,4*N_Peaks),Sigma=MCMC_MP*(2.38^2/(4*N_Peaks))*Prop_Cov)
-        Prop_Theta<-T_Prop_Theta
-        Prop_Theta[,1:N_Peaks]<-exp(Prop_Theta[,1:N_Peaks])
-        Prop_Theta[,(N_Peaks+1):(2*N_Peaks)]<-exp(Prop_Theta[,(N_Peaks+1):(2*N_Peaks)])
-        Prop_Theta[,(3*N_Peaks+1):(4*N_Peaks)]<-exp(Prop_Theta[,(3*N_Peaks+1):(4*N_Peaks)])
-        
-        for(k in 1:npart){
-          #        Prop_Theta <- copyLogProposals(N_Peaks, T_Prop_Theta[k,])
-          Sigi <- conc[Cal_I] * mixedVoigt(Prop_Theta[k,2*N_Peaks+(1:N_Peaks)], Prop_Theta[k,(1:N_Peaks)], Prop_Theta[k,N_Peaks+(1:N_Peaks)],
-                                        Prop_Theta[k,3*N_Peaks+(1:N_Peaks)], wl)
-          Obsi <- spc[Cal_I,] - Sigi
-          lambda <- lPriors$bl.smooth # fixed smoothing penalty
-          L_Ev <- computeLogLikelihood(Obsi, lambda, lPriors$noise.nu, lPriors$noise.SS,
-                                       X_Cal, Rsvd$d, lPriors$bl.precision, lPriors$bl.XtX,
-                                       lPriors$bl.orthog, lPriors$bl.Ru)
+        mh_acc <- mhUpdateVoigt(spc, Cal_I, Kappa_Hist[i], conc, wl, Sample, T_Sample, mhChol, lPriors)
+        Acc <- Acc + mh_acc
 
-          lLik <- Kappa_Hist[i]*L_Ev + #sum(dgamma(Prop_Theta[k,1:(2*N_Peaks)],shape=2,scale=5,log=TRUE)) +
-            sum(dlnorm(Prop_Theta[k,1:N_Peaks], lPriors$scaG.mu, lPriors$scaG.sd, log=TRUE)) +
-            sum(dlnorm(Prop_Theta[k,(N_Peaks+1):(2*N_Peaks)], lPriors$scaL.mu, lPriors$scaL.sd, log=TRUE)) +
-            sum(dnorm(Prop_Theta[k,(2*N_Peaks+1):(3*N_Peaks)],mean=lPriors$loc.mu,sd=lPriors$loc.sd,log=TRUE)) +
-            #          sum(dgamma(Prop_Theta[k,(3*N_Peaks+1):(4*N_Peaks)],shape=3,scale=4,log=T)) 
-            -Kappa_Hist[i]*Sample[k,Offset_1+2] - #sum(dgamma(Sample[k,1:(2*N_Peaks)],shape=2,scale=5,log=TRUE)) -
-            sum(dlnorm(Sample[k,1:N_Peaks], lPriors$scaG.mu, lPriors$scaG.sd, log=TRUE)) -
-            sum(dlnorm(Sample[k,(N_Peaks+1):(2*N_Peaks)], lPriors$scaL.mu, lPriors$scaL.sd, log=TRUE)) -
-            sum(dnorm(Sample[k,(2*N_Peaks+1):(3*N_Peaks)],mean=lPriors$loc.mu,sd=lPriors$loc.sd,log=TRUE))
-          #          sum(dgamma(Sample[k,(3*N_Peaks+1):(4*N_Peaks)],shape=3,scale=4,log=T))
-          
-          u <- log(runif(1))
-          if(is.finite(lLik) && u < lLik) {
-            T_Sample[k,1:(4*N_Peaks)]<-T_Prop_Theta[k,]                                 
-            Sample[k,1:(4*N_Peaks)]<-Prop_Theta[k,]
-            T_Sample[k,Offset_1+2]<-L_Ev
-            Sample[k,Offset_1+2]<-L_Ev
-            Acc<-Acc+1
-          }
-          
-        }
+        # update effective sample size
         US1<-unique(Sample[,1])
         N_UP<-length(US1)
-        
         Temp_W<-numeric(N_UP)
         for(k in 1:N_UP){
           Temp_W[k]<-sum(Sample[which(Sample[,1]==US1[k]),Offset_1+1])
         }
-        
         Temp_ESS<-1/sum(Temp_W^2)
-        print(paste("Temp ESS is ",Temp_ESS,".",sep=""))
+        print(paste(mh_acc,"M-H proposals accepted. Temp ESS is",Temp_ESS))
         ESS_AR[i]<-Temp_ESS
       }
       
       MC_AR[i]<-Acc/(npart*MC_Steps[i])
-      
-      # now update penalised spline param. using Gibbs step:
-#      gibbsSplinePenalty(Cal_S, Cal_I, rep(Conc_Cal,Cal_I), Cal_V, Sample, lPriors)
- #     print(paste("Mean noise parameter sigma is now",mean(sqrt(Sample[,Offset_1+3]))))
-  #    print(paste("Mean spline penalty lambda is now",mean(Sample[,Offset_1+3]/Sample[,Offset_1+4])))
     })
     
     Time_Hist[i]<-iTime[3]
@@ -281,6 +247,7 @@ fitVoigtPeaksSMC <- function(wl, spc, lPriors, conc=rep(1.0,nrow(spc)), npart=10
       print(paste("Interim results saved to",iFile))
     }
 
+    print(colMeans(Sample[,(3*N_Peaks+1):(4*N_Peaks)]))
     print(paste0("Iteration ",i," took ",iTime[3],"sec. for ",MC_Steps[i]," MCMC loops (acceptance rate ",MC_AR[i],")"))
     if (Kappa >= 1 || MC_AR[i] < 1/npart) {
       break

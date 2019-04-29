@@ -188,7 +188,7 @@ Eigen::VectorXd getVoigtParam(Eigen::VectorXd scale_G, Eigen::VectorXd scale_L)
 // [[Rcpp::export]]
 Eigen::VectorXd copyLogProposals(int nPK, Eigen::VectorXd T_Prop_Theta)
 {
-  VectorXd Prop_Theta(T_Prop_Theta.size());
+  VectorXd Prop_Theta(4*nPK);
   for (int par = 0; par < 4; par++)
   {
     if (par != 2)
@@ -271,7 +271,7 @@ double computeLogLikelihood(Eigen::VectorXd obsi, double lambda, double prErrNu,
 //' @param wavenum Vector of \code{nwl} wavenumbers at which the spetra are observed.
 //' @param thetaMx \code{(4+npeaks*4) x npart} Matrix of parameter values for each peak.
 //' @param logThetaMx \code{(4+npeaks*4) x npart} Matrix of logarithms of the parameters.
-//' @param mhCov covariance matrix for the random walk proposals.
+//' @param mhChol lower-triangular Cholesky factorisation of the covariance matrix for the random walk proposals.
 //' @param priors List of hyperparameters for the prior distributions.
 //' @return The number of RWMH proposals that were accepted.
 //' @references
@@ -282,7 +282,7 @@ double computeLogLikelihood(Eigen::VectorXd obsi, double lambda, double prErrNu,
 //' URL: \href{http://www.pphmj.com/abstract/1961.htm}{http://www.pphmj.com/abstract/1961.htm}
 // [[Rcpp::export]]
 long mhUpdateVoigt(Eigen::MatrixXd spectra, unsigned n, double kappa, Eigen::VectorXd conc, Eigen::VectorXd wavenum,
-                   NumericMatrix thetaMx, NumericMatrix logThetaMx, Eigen::MatrixXd mhCov, List priors)
+                   NumericMatrix thetaMx, NumericMatrix logThetaMx, Eigen::MatrixXd mhChol, List priors)
 {
   // priors
   double prErrNu = priors["noise.nu"];
@@ -299,11 +299,9 @@ long mhUpdateVoigt(Eigen::MatrixXd spectra, unsigned n, double kappa, Eigen::Vec
     prAmpMu = priors["beta.mu"];
     prAmpSD = priors["beta.sd"];
   }
+  double lambda = priors["bl.smooth"];
   int nPK = prLocMu.size();
-  int nWL = wavenum.size();
   int nPart = thetaMx.rows();
-  double a0_Cal = prErrNu/2.0;
-  double ai_Cal = a0_Cal + nWL/2.0;
 
   // matrices for the cubic B-spline
   MatrixXd basisMx = priors["bl.basis"];
@@ -316,46 +314,35 @@ long mhUpdateVoigt(Eigen::MatrixXd spectra, unsigned n, double kappa, Eigen::Vec
   // RNG is not thread-safe
   const NumericVector stdNorm = rnorm(nPK * nPart * 4, 0, 1);
   const NumericVector rUnif = runif(nPart, 0, 1);
-  LLT<MatrixXd> mhChol(mhCov);
 
   long accept = 0;
 #pragma omp parallel for default(shared) reduction(+:accept)
   for (int pt = 0; pt < nPart; pt++)
   {
-    VectorXd logTheta(nPK*4), stdVec(nPK*4);
+    VectorXd theta(nPK*4), logTheta(nPK*4), stdVec(nPK*4);
     for (int pk = 0; pk < nPK*4; pk++)
     {
-      stdVec[pk] = stdNorm[pt*nPK*4 + pk];
-      logTheta[pk] = logThetaMx(pt,pk);
+      stdVec(pk) = stdNorm[pt*nPK*4 + pk];
+      theta(pk) = thetaMx(pt,pk);
+      logTheta(pk) = logThetaMx(pt,pk);
     }
-    VectorXd theta = copyLogProposals(nPK, logTheta);
-//    Rcpp::Rcout << "Parameters: " << theta.transpose() << std::endl;
-    VectorXd T_Prop_Theta = logTheta + mhChol.matrixL() * stdVec;
+    VectorXd T_Prop_Theta = mhChol * stdVec + logTheta;
     VectorXd Prop_Theta = copyLogProposals(nPK, T_Prop_Theta);
-//    Rcpp::Rcout << "Proposals: " <<  Prop_Theta.transpose() << std::endl;
-
-    VectorXd sigi = conc[n-1] * mixedVoigt(Prop_Theta.segment(2*nPK,nPK), Prop_Theta.segment(0,nPK),
+    VectorXd sigi = conc(n-1) * mixedVoigt(Prop_Theta.segment(2*nPK,nPK), Prop_Theta.segment(0,nPK),
        Prop_Theta.segment(nPK,nPK), Prop_Theta.segment(3*nPK,nPK), wavenum);
-    VectorXd obsi = spectra.row(n-1) - sigi;
+    VectorXd obsi = spectra.row(n-1).transpose() - sigi;
 
     // smoothing spline:
-    double lambda = thetaMx(pt,4*nPK+2) / thetaMx(pt,4*nPK+3);
+    //double lambda = thetaMx(pt,4*nPK+2) / thetaMx(pt,4*nPK+3);
     // log-likelihood:
     double L_Ev = computeLogLikelihood(obsi, lambda, prErrNu, prErrSS, basisMx, eigVal,
                                        precMx, xTx, aMx, ruMx);
-
     double lLik = kappa*L_Ev + sumDlogNorm(Prop_Theta.segment(0,nPK), prScaGmu, prScaGsd);
-//    Rcpp::Rcout << "(" << kappa*L_Ev << ", " << sumDlogNorm(Prop_Theta.segment(0,nPK), prScaGmu, prScaGsd);
     lLik += sumDlogNorm(Prop_Theta.segment(nPK,nPK), prScaLmu, prScaLsd);
-//    Rcpp::Rcout << ", " << sumDlogNorm(Prop_Theta.segment(nPK,nPK), prScaLmu, prScaLsd);
     lLik += sumDnorm(Prop_Theta.segment(2*nPK,nPK), prLocMu, prLocSD);
-//    Rcpp::Rcout << ", " << sumDnorm(Prop_Theta.segment(2*nPK,nPK), prLocMu, prLocSD) << "); " << std::endl;
     lLik += -kappa*thetaMx(pt,4*nPK+1) - sumDlogNorm(theta.segment(0,nPK), prScaGmu, prScaGsd);
-//    Rcpp::Rcout << "(" << kappa*thetaMx(pt,4*nPK+1) << ", " << sumDlogNorm(theta.segment(0,nPK), prScaGmu, prScaGsd);
     lLik -= sumDlogNorm(theta.segment(nPK,nPK), prScaLmu, prScaLsd);
-//    Rcpp::Rcout << ", " << sumDlogNorm(theta.segment(nPK,nPK), prScaLmu, prScaLsd);
     lLik -= sumDnorm(theta.segment(2*nPK,nPK), prLocMu, prLocSD);
-//    Rcpp::Rcout << ", " << sumDnorm(theta.segment(2*nPK,nPK), prLocMu, prLocSD) << "); " << std::endl;
 
     if (priors.containsElementNamed("beta.mu"))
     {
@@ -363,23 +350,17 @@ long mhUpdateVoigt(Eigen::MatrixXd spectra, unsigned n, double kappa, Eigen::Vec
       lLik -= sumDnorm(theta.segment(3*nPK,nPK), prAmpMu, prAmpSD);
     }
 
-//    Rcpp::Rcout << "(" << lLik << "; " << log(rUnif[pt]) << "); " << std::endl;
-    if (log(rUnif[pt]) < lLik)
+    if (std::isfinite(lLik) && log(rUnif[pt]) < lLik)
     {
       for (int pk=0; pk < nPK*4; pk++)
       {
-        logThetaMx(pt,pk) = T_Prop_Theta[pk];
-        thetaMx(pt,pk) = Prop_Theta[pk];
+         logThetaMx(pt,pk) = T_Prop_Theta(pk);
+         thetaMx(pt,pk) = Prop_Theta(pk);
       }
       logThetaMx(pt,4*nPK+1) = L_Ev;
       thetaMx(pt,4*nPK+1) = L_Ev;
       accept += 1;
-//      Rcpp::Rcout << "*";
     }
-    // else
-    // {
-//      Rcpp::Rcout << ".";
-    // }
   }
   return accept;
 }

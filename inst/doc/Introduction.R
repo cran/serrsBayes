@@ -3,18 +3,15 @@ knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>"
 )
+set.seed(1234)
 
-## ----download------------------------------------------------------------
-tmp <- tempfile()
-download.file("https://pure.strath.ac.uk/portal/files/43595106/Figure_2.zip", tmp)
-tmp2 <- unzip(tmp, "Figure 2/T20 SERS spectra/T20_1_ REP1  Well_A1.SPC")
-
-## ----spc, message=FALSE, fig.width=6-------------------------------------
+## ----data, message=FALSE, fig.width=6------------------------------------
+library(serrsBayes)
 library(hyperSpec)
-spcT20 <- read.spc (tmp2)
-plot(spcT20[1,], col=4, wl.range=600~1800,
+data("TAMRA", package = "serrsBayes")
+plot(TAMRA[1,], col=4, wl.range=600~1800,
      title.args=list(main="Raman Spectrum of TAMRA+DNA"))
-spectra <- spcT20[1,,600~1800]
+spectra <- TAMRA[1,,600~1800]
 wavenumbers <- wl(spectra)
 nWL <- length(wavenumbers)
 
@@ -28,19 +25,17 @@ priors <- list(loc.mu=peakLocations, loc.sd=rep(50,nPK), scaG.mu=log(16.47) - (0
                bl.smooth=1, bl.knots=121)
 
 ## ----SMC, results='hide'-------------------------------------------------
-set.seed(1234)
-library(serrsBayes)
 data("result", package = "serrsBayes")
 if(!exists("result")) {
   tm <- system.time(result <- fitVoigtPeaksSMC(wavenumbers, as.matrix(spectra), priors, npart=2000))
   result$time <- tm
-  save(result, file="Figure 2/result.rda")
+  save(result, file="result.rda")
 }
 
 ## ----time----------------------------------------------------------------
-print(paste(result$time["elapsed"]/3600,"hours for",length(result$ess),"SMC iterations."))
+print(paste(format(result$time["elapsed"]/3600, digits=3),"hours for",length(result$ess),"SMC iterations."))
 
-## ----ess, fig.show='hold'------------------------------------------------
+## ----ess, fig.show='hold', fig.width=3, fig.height=3---------------------
 plot.ts(result$ess, ylab="ESS", main="Effective Sample Size",
         xlab="SMC iteration", ylim=c(0,max(result$ess)))
 abline(h=max(result$ess)/2, col=4, lty=2)
@@ -60,7 +55,7 @@ samp.idx <- sample.int(length(result$weights), 50, prob=result$weights)
 samp.mat <- resid.mat <- matrix(0,nrow=length(samp.idx), ncol=nWL)
 samp.sigi <- samp.lambda <- numeric(length=nrow(samp.mat))
 spectra <- as.matrix(spectra)
-plot(wavenumbers, spectra[1,], type='l', xlab="Raman offset", ylab="intensity")
+plot(wavenumbers, spectra[1,], type='l', xlab=expression(paste("Raman shift (cm"^{-1}, ")")), ylab="Intensity (a.u.)")
 for (pt in 1:length(samp.idx)) {
   k <- samp.idx[pt]
   samp.mat[pt,] <- mixedVoigt(result$location[k,], result$scale_G[k,],
@@ -80,7 +75,7 @@ for (pt in 1:length(samp.idx)) {
 }
 title(main="Baseline for TAMRA")
 
-plot(range(wavenumbers), range(samp.mat), type='n', xlab="Raman offset", ylab="Intensity")
+plot(range(wavenumbers), range(samp.mat), type='n', xlab=expression(paste("Raman shift (cm"^{-1}, ")")), ylab="Intensity (a.u.)")
 abline(h=0,lty=2)
 for (pt in 1:length(samp.idx)) {
   lines(wavenumbers, samp.mat[pt,], col=4)
