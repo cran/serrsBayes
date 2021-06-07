@@ -4,9 +4,20 @@
 \alias{fitVoigtIBIS}
 \title{Fit the model with Voigt peaks using iterated batch importance sampling (IBIS).}
 \usage{
-fitVoigtIBIS(wl, spc, n, lResult, conc = rep(1, nrow(spc)),
-  batch = rep(1, nrow(spc)), npart = 10000, rate = 0.9,
-  mcAR = 0.23, mcSteps = 10, minESS = npart/2, destDir = NA)
+fitVoigtIBIS(
+  wl,
+  spc,
+  n,
+  lResult,
+  conc = rep(1, nrow(spc)),
+  batch = rep(1, nrow(spc)),
+  npart = 10000,
+  rate = 0.9,
+  mcAR = 0.23,
+  mcSteps = 10,
+  minESS = npart/2,
+  destDir = NA
+)
 }
 \arguments{
 \item{wl}{Vector of \code{nwl} wavenumbers at which the spetra are observed.}
@@ -38,5 +49,5 @@ Fit the model with Voigt peaks using iterated batch importance sampling (IBIS).
 }
 \references{
 Chopin (2002) "A Sequential Particle Filter Method for Static Models," Biometrika 89(3): 539--551,
-DOI: \href{http://dx.doi.org/10.1093/biomet/89.3.539}{10.1093/biomet/89.3.539}
+\doi{10.1093/biomet/89.3.539}
 }

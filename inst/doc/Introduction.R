@@ -26,13 +26,14 @@ priors <- list(loc.mu=peakLocations, loc.sd=rep(50,nPK), scaG.mu=log(16.47) - (0
 ## ----SMC, results='hide'------------------------------------------------------
 data("result", package = "serrsBayes")
 if(!exists("result")) {
-  tm <- system.time(result <- fitVoigtPeaksSMC(wavenumbers, spectra, priors, npart=2000))
-  result$time <- tm
-  save(result, file="result.rda")
+  t1 <- Sys.time()
+  result <- fitVoigtPeaksSMC(wavenumbers, spectra, priors, npart=2000)
+  result$time <- Sys.time() - t1
+  save(result, file="Figure 2/result.rda")
 }
 
 ## ----time---------------------------------------------------------------------
-print(paste(format(result$time["elapsed"]/3600, digits=3),"hours for",length(result$ess),"SMC iterations."))
+print(paste(format(result$time, digits=3),"for",length(result$ess),"SMC iterations."))
 
 ## ----ess, fig.show='hold', fig.width=3, fig.height=3--------------------------
 plot.ts(result$ess, ylab="ESS", main="Effective Sample Size",
@@ -43,7 +44,7 @@ plot.ts(result$accept, ylab="accept", main="M-H Acceptance Rate",
         xlab="SMC iteration", ylim=c(0,max(result$accept)))
 abline(h=0.234, col=4, lty=2)
 abline(h=0,lty=2)
-plot.ts(result$times, ylab="time (s)", main="Elapsed Time", xlab="SMC iteration")
+plot.ts(result$times/60, ylab="time (min)", main="Elapsed Time", xlab="SMC iteration")
 plot.ts(result$kappa, ylab=expression(kappa), main="Likelihood Tempering",
         xlab="SMC iteration")
 abline(h=0,lty=2)
@@ -59,8 +60,8 @@ for (pt in 1:length(samp.idx)) {
   k <- samp.idx[pt]
   samp.mat[pt,] <- mixedVoigt(result$location[k,], result$scale_G[k,],
                               result$scale_L[k,], result$beta[k,], wavenumbers)
-  samp.sigi[pt] <- result$sigma
-  samp.lambda[pt] <- result$lambda
+  samp.sigi[pt] <- result$sigma[k]
+  samp.lambda[pt] <- result$lambda[k]
   
   Obsi <- spectra[1,] - samp.mat[pt,]
   g0_Cal <- length(Obsi) * samp.lambda[pt] * result$priors$bl.precision
@@ -100,13 +101,13 @@ for (k in 1:nrow(result$beta)) {
 }
 
 voigtCI <- apply(result$voigt, 2, function(x) quantile(x,probs=c(0.025,0.975)))
-fmtVoigtCI <- format(voigtCI,dig=2)
+fmtVoigtCI <- format(voigtCI,digits=2)
 fwhmCI <- apply(result$FWHM, 2, function(x) quantile(x,probs=c(0.025,0.975)))
-fmtFWHMci <- format(fwhmCI,dig=2)
+fmtFWHMci <- format(fwhmCI,digits=2)
 ampCI <- apply(result$beta, 2, function(x) quantile(x,probs=c(0.025,0.975)))
-fmtAmpCI <- format(ampCI,digits=0,scientific=FALSE)
+fmtAmpCI <- format(ampCI,digits=1,scientific=FALSE)
 locCI <- apply(result$location, 2, function(x) quantile(x,probs=c(0.025,0.975)))
-fmtLocCI <- format(locCI,dig=3)
+fmtLocCI <- format(locCI,digits=3)
 
 library(knitr)
 tabCI <- cbind(paste0("[", fmtLocCI[1,], "; ", fmtLocCI[2,], "]"),

@@ -4,8 +4,17 @@
 \alias{mhUpdateVoigt}
 \title{Update the parameters of the Voigt peaks using marginal Metropolis-Hastings.}
 \usage{
-mhUpdateVoigt(spectra, n, kappa, conc, wavenum, thetaMx, logThetaMx,
-  mhChol, priors)
+mhUpdateVoigt(
+  spectra,
+  n,
+  kappa,
+  conc,
+  wavenum,
+  thetaMx,
+  logThetaMx,
+  mhChol,
+  priors
+)
 }
 \arguments{
 \item{spectra}{\code{n_y * nwl} Matrix of observed Raman spectra.}
@@ -40,8 +49,8 @@ Rcpp equivalents, can be made from within the parallel portion of the code.
 }
 \references{
 Chib (1995) "Marginal Likelihood from the Gibbs Output," JASA 90(432): 1313--1321,
-DOI: \href{http://dx.doi.org/10.1080/01621459.1995.10476635}{10.1080/01621459.1995.10476635}
+\doi{10.1080/01621459.1995.10476635}
 
 Rosenthal (2000) "Parallel computing and Monte Carlo algorithms" Far East J. Theor. Stat. 4(2): 207--236,
-URL: \href{http://www.pphmj.com/abstract/1961.htm}{http://www.pphmj.com/abstract/1961.htm}
+URL: \href{https://www.pphmj.com/abstract/1961.htm}{https://www.pphmj.com/abstract/1961.htm}
 }
