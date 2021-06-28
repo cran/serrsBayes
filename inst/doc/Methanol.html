@@ -12,7 +12,7 @@
 
 <meta name="author" content="Matt Moores, Benjamin Moskowitz and Karen Faulds" />
 
-<meta name="date" content="2021-06-07" />
+<meta name="date" content="2021-06-28" />
 
 <title>Methanol example</title>
 
@@ -162,7 +162,7 @@ div.csl-indent {
 
 <h1 class="title toc-ignore">Methanol example</h1>
 <h4 class="author">Matt Moores, Benjamin Moskowitz and Karen Faulds</h4>
-<h4 class="date">2021-06-07</h4>
+<h4 class="date">2021-06-28</h4>
 
 
 
@@ -210,7 +210,7 @@ div.csl-indent {
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>                 <span class="at">beta.mu=</span><span class="dv">5000</span>, <span class="at">beta.sd=</span><span class="dv">5000</span>, <span class="at">noise.sd=</span><span class="dv">200</span>, <span class="at">noise.nu=</span><span class="dv">4</span>)</span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>tm <span class="ot">&lt;-</span> <span class="fu">system.time</span>(result <span class="ot">&lt;-</span> <span class="fu">fitSpectraSMC</span>(wavenumbers, spectra, peakLocations, lPriors))</span></code></pre></div>
 <div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(<span class="fu">paste</span>(tm[<span class="st">&quot;elapsed&quot;</span>]<span class="sc">/</span><span class="dv">60</span>, <span class="st">&quot;minutes&quot;</span>))</span></code></pre></div>
-<pre><code>## [1] &quot;3.06238333333333 minutes&quot;</code></pre>
+<pre><code>## [1] &quot;3.40311666666667 minutes&quot;</code></pre>
 <p>We can see there is a problem with the model fit:</p>
 <div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>samp.idx <span class="ot">&lt;-</span> <span class="fu">sample.int</span>(<span class="fu">length</span>(result<span class="sc">$</span>weights), <span class="dv">200</span>, <span class="at">prob=</span>result<span class="sc">$</span>weights)</span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(wavenumbers, spectra[<span class="dv">1</span>,], <span class="at">type=</span><span class="st">&#39;l&#39;</span>, <span class="at">lwd=</span><span class="dv">3</span>,</span>
@@ -304,7 +304,7 @@ f_{total} \approx \left(f_G^5 + 2.69269f_G^4 f_L + 2.42843f_G^3 f_L^2 + 4.47163f
 <span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>pkLocNew <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="fu">colMeans</span>(result2<span class="sc">$</span>location), <span class="dv">1550</span>)</span>
 <span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>tm3 <span class="ot">&lt;-</span> <span class="fu">system.time</span>(result3 <span class="ot">&lt;-</span> <span class="fu">fitSpectraSMC</span>(wavenumbers, spectra, pkLocNew, lPriors3, <span class="at">npart=</span><span class="dv">2000</span>))</span></code></pre></div>
 <div class="sourceCode" id="cb13"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(<span class="fu">paste</span>(tm3[<span class="st">&quot;elapsed&quot;</span>]<span class="sc">/</span><span class="dv">60</span>, <span class="st">&quot;minutes&quot;</span>))</span></code></pre></div>
-<pre><code>## [1] &quot;0.692666666666667 minutes&quot;</code></pre>
+<pre><code>## [1] &quot;0.86755 minutes&quot;</code></pre>
 <div class="sourceCode" id="cb15"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>samp.idx <span class="ot">&lt;-</span> <span class="fu">sample.int</span>(<span class="fu">length</span>(result3<span class="sc">$</span>weights), <span class="dv">200</span>, <span class="at">prob=</span>result3<span class="sc">$</span>weights)</span>
 <span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(wavenumbers, spectra[<span class="dv">1</span>,], <span class="at">type=</span><span class="st">&#39;l&#39;</span>, <span class="at">lwd=</span><span class="dv">3</span>,</span>
 <span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>     <span class="at">xlab=</span><span class="fu">expression</span>(<span class="fu">paste</span>(<span class="st">&quot;Raman shift (cm&quot;</span><span class="sc">^</span>{<span class="sc">-</span><span class="dv">1</span>}, <span class="st">&quot;)&quot;</span>)), <span class="at">ylab=</span><span class="st">&quot;Intensity (a.u.)&quot;</span>, <span class="at">main=</span><span class="st">&quot;Fitted model with informative priors&quot;</span>)</span>

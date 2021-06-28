@@ -19,21 +19,21 @@ peakLocations <- c(615, 631, 664, 673, 702, 705, 771, 819, 895, 923, 1014,
                    1047, 1049, 1084, 1125, 1175, 1192, 1273, 1291, 1307, 1351, 1388, 1390,
                    1419, 1458, 1505, 1530, 1577, 1601, 1615, 1652, 1716)
 nPK <- length(peakLocations)
-priors <- list(loc.mu=peakLocations, loc.sd=rep(50,nPK), scaG.mu=log(16.47) - (0.34^2)/2,
-               scaG.sd=0.34, scaL.mu=log(25.27) - (0.4^2)/2, scaL.sd=0.4, noise.nu=5, noise.sd=50,
-               bl.smooth=1, bl.knots=121)
+priors <- list(loc.mu=peakLocations, loc.sd=rep(25,nPK), scaG.mu=log(10) - (0.34^2)/2,
+               scaG.sd=0.34, scaL.mu=log(10) - (0.4^2)/2, scaL.sd=0.4, noise.nu=5, noise.sd=20,
+               bl.smooth=1, bl.knots=121, beta.exp=80)
 
 ## ----SMC, results='hide'------------------------------------------------------
 data("result", package = "serrsBayes")
 if(!exists("result")) {
   t1 <- Sys.time()
-  result <- fitVoigtPeaksSMC(wavenumbers, spectra, priors, npart=2000)
+  result <- fitVoigtPeaksSMC(wavenumbers, spectra, priors, mcSteps=50, minPart = 7900, npart = 8000)
   result$time <- Sys.time() - t1
   save(result, file="Figure 2/result.rda")
 }
 
 ## ----time---------------------------------------------------------------------
-print(paste(format(result$time, digits=3),"for",length(result$ess),"SMC iterations."))
+print(paste(format(result$time,digits=4)," for",length(result$ess),"SMC iterations."))
 
 ## ----ess, fig.show='hold', fig.width=3, fig.height=3--------------------------
 plot.ts(result$ess, ylab="ESS", main="Effective Sample Size",
@@ -54,6 +54,7 @@ abline(h=1,lty=3,col=4)
 samp.idx <- sample.int(length(result$weights), 50, prob=result$weights)
 samp.mat <- resid.mat <- matrix(0,nrow=length(samp.idx), ncol=nWL)
 samp.sigi <- samp.lambda <- numeric(length=nrow(samp.mat))
+samp.loc <- colMeans(result$location)
 spectra <- as.matrix(spectra)
 plot(wavenumbers, spectra[1,], type='l', xlab=expression(paste("Raman shift (cm"^{-1}, ")")), ylab="Intensity (a.u.)")
 for (pt in 1:length(samp.idx)) {
@@ -74,6 +75,7 @@ for (pt in 1:length(samp.idx)) {
   resid.mat[pt,] <- Obsi - bl.est[,1]
 }
 title(main="Baseline for TAMRA")
+rug(samp.loc, col=4,lwd=2)
 
 plot(range(wavenumbers), range(samp.mat), type='n', xlab=expression(paste("Raman shift (cm"^{-1}, ")")), ylab="Intensity (a.u.)")
 abline(h=0,lty=2)
@@ -81,6 +83,7 @@ for (pt in 1:length(samp.idx)) {
   lines(wavenumbers, samp.mat[pt,], col=4)
 }
 title(main="Spectral Signature")
+rug(samp.loc,col=4,lwd=2)
 
 ## -----------------------------------------------------------------------------
 result$voigt <- result$FWHM <- matrix(nrow=nrow(result$beta), ncol=ncol(result$beta))

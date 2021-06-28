@@ -1,3 +1,19 @@
+# serrsBayes 0.5-0
+
+## New Features
+
+* Zero MCMC iterations will be performed if the number of unique particles is already >= minPart (adaptive number of MCMC steps)
+* Replaced the default uniform prior distribution for the peak amplitudes with an exponential prior
+
+## Bug Fixes
+
+* Merged pull request from Rcpp team to use constant M_PI instead of PI to support STRICT_R_HEADERS
+* Fixed issue with plots in Introduction vignette
+* Fixed broken link to EPSRC grants website (now uses UKRI Gateway to Research)
+* Added package Hmisc to suggests to fix Undeclared package in Rd xrefs NOTE on CRAN
+* Try-catch when computing Cholesky decomposition of the Gaussian random walk variance-covariance matrix (fallback to diagonal matrix by default)
+* Removed Travis CI from README, since builds have ceased on June 15, 2021
+
 # serrsBayes 0.4-2
 
 ## New Features
