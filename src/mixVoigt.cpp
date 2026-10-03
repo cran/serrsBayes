@@ -1,9 +1,10 @@
 // #  -------------------------------------------------------------------------
 // #  This file contains C++ code to fit Voigt peaks to spectroscopic data.
 // #  For more detail, see:
-// #  Moores; Gracie; Carson; Faulds; Graham & Girolami (2016; v2 2018)
+// #  Moores; Gracie; Carson; Faulds; Graham & Girolami (2026)
 // #  "Bayesian modelling and quantification of Raman spectroscopy"
-// #  https://arxiv.org/abs/1604.07299
+// #  2025 MATRIX Annals, Part II, pp. 417--428. Springer.
+// #  https://www.matrix-inst.org.au/wp_Matrix2016/wp-content/uploads/2025/2025_Pathiraja/MOORES.pdf
 // #
 // #  Copyright (C) 2017,2018  University of Warwick
 // # 
@@ -25,6 +26,11 @@
 using namespace Rcpp;
 using namespace Eigen;
 // [[Rcpp::plugins(openmp)]]
+
+double logLikelihood(const Ref<const VectorXd>& obsi, double lambda, double prErrNu, double prErrSS,
+            const Ref<const VectorXd>& eigVal, const Ref<const SparseMatrix<double> >& precMx,
+            const Ref<const SparseMatrix<double> >& xTx, const Ref<const MatrixXd>& aMx,
+            const Ref<const MatrixXd>& ruMx);
 
 Eigen::VectorXd dCauchy(Eigen::VectorXd Cal_V, double loc, double scale)
 {
@@ -255,9 +261,20 @@ Eigen::VectorXd copyLogProposals(int nPK, Eigen::VectorXd T_Prop_Theta)
 //' @param ruMx product of Ru from the Demmler-Reinsch factorisation
 //' @return The logarithm of the likelihood.
 // [[Rcpp::export]]
-double computeLogLikelihood(Eigen::VectorXd obsi, double lambda, double prErrNu, double prErrSS,
-            Eigen::MatrixXd basisMx, Eigen::VectorXd eigVal, Eigen::SparseMatrix<double> precMx,
-            Eigen::SparseMatrix<double> xTx, Eigen::MatrixXd aMx, Eigen::MatrixXd ruMx)
+double computeLogLikelihood(const Eigen::Map<Eigen::VectorXd> obsi, double lambda, double prErrNu, double prErrSS,
+            const Eigen::Map<Eigen::MatrixXd> basisMx, const Eigen::Map<Eigen::VectorXd> eigVal,
+            const Eigen::Map<Eigen::SparseMatrix<double> > precMx, const Eigen::Map<Eigen::SparseMatrix<double> > xTx,
+            const Eigen::Map<Eigen::MatrixXd> aMx, const Eigen::Map<Eigen::MatrixXd> ruMx)
+{
+  return logLikelihood(obsi, lambda, prErrNu, prErrSS, eigVal, precMx, xTx, aMx, ruMx);
+}
+
+// Pass by reference to avoid copying the matrices, since this is called for every particle.
+// Eigen::Ref binds to either a Map of the R objects or a local Eigen object, without a copy.
+double logLikelihood(const Ref<const VectorXd>& obsi, double lambda, double prErrNu, double prErrSS,
+            const Ref<const VectorXd>& eigVal, const Ref<const SparseMatrix<double> >& precMx,
+            const Ref<const SparseMatrix<double> >& xTx, const Ref<const MatrixXd>& aMx,
+            const Ref<const MatrixXd>& ruMx)
 {
   double nWL = obsi.size();
   double a0_Cal = prErrNu/2.0;
@@ -327,13 +344,16 @@ long mhUpdateVoigt(Eigen::MatrixXd spectra, unsigned n, double kappa, Eigen::Vec
   VectorXd prLocMu = priors["loc.mu"];
   VectorXd prLocSD = priors["loc.sd"];
   VectorXd prAmpMu, prAmpSD;
-  if (priors.containsElementNamed("beta.mu"))
+  // check once here: the R API must not be called inside the parallel loop
+  const bool ampNormal = priors.containsElementNamed("beta.mu");
+  const bool ampExp = priors.containsElementNamed("beta.exp");
+  if (ampNormal)
   {
     prAmpMu = priors["beta.mu"];
     prAmpSD = priors["beta.sd"];
   }
   double prExpRate;
-  if (priors.containsElementNamed("beta.exp"))
+  if (ampExp)
   {
     prExpRate = priors["beta.rate"];
   }
@@ -342,13 +362,12 @@ long mhUpdateVoigt(Eigen::MatrixXd spectra, unsigned n, double kappa, Eigen::Vec
   int nPart = thetaMx.rows();
   int nWL = wavenum.size();
 
-  // matrices for the cubic B-spline
-  MatrixXd basisMx = priors["bl.basis"];
-  VectorXd eigVal = priors["bl.eigen"];
-  const MappedSparseMatrix<double> precMx(as<MappedSparseMatrix<double> >(priors["bl.precision"]));
-  const MappedSparseMatrix<double> xTx(as<MappedSparseMatrix<double> >(priors["bl.XtX"]));
-  MatrixXd aMx = priors["bl.orthog"]; // orthogonal, Demmler-Reinsch basis
-  MatrixXd ruMx = priors["bl.Ru"];
+  // matrices for the cubic B-spline (mapped to the R objects, rather than copied)
+  const Map<VectorXd> eigVal(as<Map<VectorXd>>(priors["bl.eigen"]));
+  const Map<SparseMatrix<double>> precMx(as<Map<SparseMatrix<double>>>(priors["bl.precision"]));
+  const Map<SparseMatrix<double>> xTx(as<Map<SparseMatrix<double>>>(priors["bl.XtX"]));
+  const Map<MatrixXd> aMx(as<Map<MatrixXd>>(priors["bl.orthog"])); // orthogonal, Demmler-Reinsch basis
+  const Map<MatrixXd> ruMx(as<Map<MatrixXd>>(priors["bl.Ru"]));
 
   // RNG is not thread-safe
   const NumericVector stdNorm = rnorm(nPK * nPart * 4, 0, 1);
@@ -385,19 +404,19 @@ long mhUpdateVoigt(Eigen::MatrixXd spectra, unsigned n, double kappa, Eigen::Vec
     // smoothing spline:
     //double lambda = thetaMx(pt,4*nPK+2) / thetaMx(pt,4*nPK+3);
     // log-likelihood:
-    double L_Ev = computeLogLikelihood(obsi, lambda, prErrNu, prErrSS, basisMx, eigVal,
-                                       precMx, xTx, aMx, ruMx);
+    double L_Ev = logLikelihood(obsi, lambda, prErrNu, prErrSS, eigVal,
+                                precMx, xTx, aMx, ruMx);
     double lLik = kappa*L_Ev + sumDlogNorm(Prop_Theta.segment(0,nPK), prScaGmu, prScaGsd);
     lLik += sumDlogNorm(Prop_Theta.segment(nPK,nPK), prScaLmu, prScaLsd);
     lLik += sumDnorm(Prop_Theta.segment(2*nPK,nPK), prLocMu, prLocSD);
     lLik += -kappa*thetaMx(pt,4*nPK+n) - sumDlogNorm(theta.segment(0,nPK), prScaGmu, prScaGsd);
     lLik -= sumDlogNorm(theta.segment(nPK,nPK), prScaLmu, prScaLsd);
     lLik -= sumDnorm(theta.segment(2*nPK,nPK), prLocMu, prLocSD);
-    if (priors.containsElementNamed("beta.mu"))
+    if (ampNormal)
     {
       lLik += sumDnorm(Prop_Theta.segment(3*nPK,nPK), prAmpMu, prAmpSD);
       lLik -= sumDnorm(theta.segment(3*nPK,nPK), prAmpMu, prAmpSD);
-    } else if (priors.containsElementNamed("beta.exp"))
+    } else if (ampExp)
     {
       lLik += sumDexp(Prop_Theta.segment(3*nPK,nPK), prExpRate);
       lLik -= sumDexp(theta.segment(3*nPK,nPK), prExpRate);
@@ -409,7 +428,7 @@ long mhUpdateVoigt(Eigen::MatrixXd spectra, unsigned n, double kappa, Eigen::Vec
       sigi = conc(i) * mixedVoigt(Prop_Theta.segment(2*nPK,nPK), Prop_Theta.segment(0,nPK),
                   Prop_Theta.segment(nPK,nPK), Prop_Theta.segment(3*nPK,nPK), wavenum);
       obsi = spectra.row(i).transpose() - sigi;
-      oldLogLik(i) = computeLogLikelihood(obsi, lambda, prErrNu, prErrSS, basisMx, eigVal,
+      oldLogLik(i) = logLikelihood(obsi, lambda, prErrNu, prErrSS, eigVal,
                 precMx, xTx, aMx, ruMx);
       lLik += oldLogLik(i);
       lLik -= thetaMx(pt,4*nPK+i+1);

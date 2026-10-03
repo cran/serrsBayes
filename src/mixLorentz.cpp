@@ -1,9 +1,10 @@
 // #  -------------------------------------------------------------------------
 // #  This file contains C++ code to fit Gaussian or Lorentzian peaks to
 // #  spectroscopic data. For more detail, see:
-// #  Moores; Gracie; Carson; Faulds; Graham & Girolami (2016; v2 2018)
+// #  Moores; Gracie; Carson; Faulds; Graham & Girolami (2026)
 // #  "Bayesian modelling and quantification of Raman spectroscopy"
-// #  https://arxiv.org/abs/1604.07299
+// #  2025 MATRIX Annals, Part II, pp. 417--428. Springer.
+// #  https://www.matrix-inst.org.au/wp_Matrix2016/wp-content/uploads/2025/2025_Pathiraja/MOORES.pdf
 // #
 // #  Copyright (C) 2017,2018  University of Warwick
 // # 
@@ -419,7 +420,7 @@ long marginalMetropolisUpdate(Eigen::MatrixXd spectra, unsigned n, Eigen::Vector
   int nWL = wavelengths.size();
   int nPart = betaMx.cols();
   MatrixXd basisMx = priors["bl.basis"];
-  const MappedSparseMatrix<double> prPrecMx(as<MappedSparseMatrix<double> >(priors["bl.precision"]));
+  const Map<SparseMatrix<double>> prPrecMx(as<Map<SparseMatrix<double>>>(priors["bl.precision"]));
   int nBasis = prPrecMx.cols();
   SparseMatrix<double> xTx = (basisMx.transpose() * basisMx).sparseView();
   SparseMatrix<double> giPrecMx = xTx + prPrecMx;

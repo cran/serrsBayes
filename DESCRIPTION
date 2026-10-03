@@ -1,20 +1,22 @@
 Package: serrsBayes
 Type: Package
 Title: Bayesian Modelling of Raman Spectroscopy
-Version: 0.5-0
-Date: 2021-06-28
+Version: 0.6-0
+Date: 2026-10-03
 Authors@R: c(
     person("Matt", "Moores", role = c("aut", "cre"), email = "mmoores@gmail.com", comment = c(ORCID = "0000-0003-4531-3572")),
     person("Jake", "Carson", role="aut", email="Jake.Carson@warwick.ac.uk", comment = c(ORCID = "0000-0002-7896-0971")),
-    person("Benjamin", "Moskowitz", role="ctb"),
+    person("Dirk", "Eddelbuettel", role = "ctb", comment = c(ORCID = "0000-0001-6419-907X")),
+    person("Benjamin", "Moskowitz", role="ctb", comment = c(ORCID = "0000-0003-1005-8639")),
     person("Kirsten", "Gracie", role="dtc"),
     person("Karen", "Faulds", role="dtc", comment = c(ORCID = "0000-0002-5567-7399")),
-    person("Mark", "Girolami", role="aut"),
+    person("Duncan", "Graham", role="dtc", comment = c(ORCID = "0000-0002-6079-2105")),
+    person("Mark", "Girolami", role="aut", comment = c(ORCID = "0000-0003-3008-253X")),
     person("Engineering and Physical Sciences Research Council", role="fnd", comment="EPSRC programme grant ref: EP/L014165/1"),
     person("University of Warwick", role="cph"))
 Description: Sequential Monte Carlo (SMC) algorithms for fitting a generalised additive
     mixed model (GAMM) to surface-enhanced resonance Raman spectroscopy (SERRS),
-    using the method of Moores et al. (2016) <arXiv:1604.07299>. Multivariate
+    using the method of Moores et al. (2026) <doi:10.48550/arXiv.1604.07299>. Multivariate
     observations of SERRS are highly collinear and lend themselves to a reduced-rank
     representation. The GAMM separates the SERRS signal into three components: a
     sequence of Lorentzian, Gaussian, or pseudo-Voigt peaks; a smoothly-varying baseline;
@@ -33,16 +35,20 @@ LazyData: true
 RoxygenNote: 7.1.1
 VignetteBuilder: knitr
 NeedsCompilation: yes
-Packaged: 2021-06-28 10:24:02 UTC; matt
-Author: Matt Moores [aut, cre] (<https://orcid.org/0000-0003-4531-3572>),
-  Jake Carson [aut] (<https://orcid.org/0000-0002-7896-0971>),
-  Benjamin Moskowitz [ctb],
+Packaged: 2026-10-03 09:05:13 UTC; mmoores
+Author: Matt Moores [aut, cre] (ORCID: <https://orcid.org/0000-0003-4531-3572>),
+  Jake Carson [aut] (ORCID: <https://orcid.org/0000-0002-7896-0971>),
+  Dirk Eddelbuettel [ctb] (ORCID:
+    <https://orcid.org/0000-0001-6419-907X>),
+  Benjamin Moskowitz [ctb] (ORCID:
+    <https://orcid.org/0000-0003-1005-8639>),
   Kirsten Gracie [dtc],
-  Karen Faulds [dtc] (<https://orcid.org/0000-0002-5567-7399>),
-  Mark Girolami [aut],
+  Karen Faulds [dtc] (ORCID: <https://orcid.org/0000-0002-5567-7399>),
+  Duncan Graham [dtc] (ORCID: <https://orcid.org/0000-0002-6079-2105>),
+  Mark Girolami [aut] (ORCID: <https://orcid.org/0000-0003-3008-253X>),
   Engineering and Physical Sciences Research Council [fnd] (EPSRC
     programme grant ref: EP/L014165/1),
   University of Warwick [cph]
 Maintainer: Matt Moores <mmoores@gmail.com>
 Repository: CRAN
-Date/Publication: 2021-06-28 12:20:02 UTC
+Date/Publication: 2026-10-03 09:30:02 UTC

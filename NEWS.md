@@ -1,3 +1,22 @@
+# serrsBayes 0.6-0
+
+## New Features
+
+* Added SHLIB_OPENMP_CXXFLAGS to Makevars for parallel computation on supported platforms
+  (e.g. Apple clang 21 and libomp 17.0.6)
+* `mhUpdateVoigt` no longer copies the spline matrices for each particle, using pass-by-reference instead.
+
+## Bug Fixes
+
+* Merged PR #4 from Dirk Eddelbuettel for compatibility with Eigen 5.0
+* Replaced deprecated Matrix coercions `as(., "dgCMatrix")` with coercions via virtual classes
+* Fixed NOTE for using old-style personList() or as.personList() in CITATION
+* Added citation to Moores et al. (2025 MATRIX Annals Part II) instead of arXiv preprint
+* Also cited Gracie et al. (Anal. Chem. 2016) and its associated SERS dataset (Gracie 2015)
+* Replaced Travis with GitHub Actions for CI and codecov for code coverage
+* Enabled Rhub 2 GitHub Action
+* Added new unit tests for SMC functions
+
 # serrsBayes 0.5-0
 
 ## New Features
